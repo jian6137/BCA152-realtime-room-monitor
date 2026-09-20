@@ -12,6 +12,16 @@ struct SensorData {
     bool motionDetected;
 };
 
+/* display mode for UI navigation */
+enum class DisplayMode {
+    TEMPERATURE,
+    HUMIDITY,
+    LIGHT,
+    MOTION
+};
+
+extern DisplayMode currentDisplayMode;
+
 /* queue for broadcasting sensor data to other tasks */
 extern QueueHandle_t sensorQueue;
 
