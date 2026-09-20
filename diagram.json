@@ -20,7 +20,15 @@
       "attrs": {}
     },
     { "type": "wokwi-ssd1306", "id": "oled1", "top": -166.1, "left": 40.3, "attrs": {} },
-    { "type": "wokwi-ky-040", "id": "encoder1", "top": 126.5, "left": -173.6, "attrs": {} }
+    { "type": "wokwi-ky-040", "id": "encoder1", "top": 126.5, "left": -173.6, "attrs": {} },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 211.2,
+      "left": 163.2,
+      "rotate": 180,
+      "attrs": {}
+    }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -44,7 +52,10 @@
     [ "encoder1:GND", "esp:GND", "black", [] ],
     [ "encoder1:CLK", "esp:26", "orange", [ "h48", "v-19.2" ] ],
     [ "encoder1:DT", "esp:27", "purple", [ "h38.4", "v-19.1" ] ],
-    [ "encoder1:SW", "esp:25", "gray", [ "h28.8", "v-47.9" ] ]
+    [ "encoder1:SW", "esp:25", "gray", [ "h28.8", "v-47.9" ] ],
+    [ "bz1:1", "esp:13", "purple", [ "h38.4", "v86.4", "h-268.8", "v-134.4" ] ],
+    [ "bz1:0", "esp:GND.3", "black", [] ],
+    [ "bz1:2", "esp:3V3", "green", [ "v-249.6", "h-192.4", "v67.2" ] ]
   ],
   "dependencies": {}
 }

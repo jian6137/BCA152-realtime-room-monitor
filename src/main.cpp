@@ -16,6 +16,7 @@
 #include "display.h"
 
 #include "input.h"
+#include "alarm.h"
 #include "driver/gpio.h"
 
 /* SensorTask implementation */
@@ -34,11 +35,33 @@ void sensor_task(void *pvParameters) {
         }
         
         data.lightLevel = ldr_read_percentage();
-        data.motionDetected = false; // dummy for now
+        data.motionDetected = false; // dummy & temp data for now until PIR reading is implemented
+        
+        // Evaluate alarm conditions
+        AlarmState newState = evaluateTemperature(data.temperature);
+        alarm_set_state(newState);
         
         xQueueSend(sensorQueue, &data, 0);
         
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    }
+}
+
+/* AlarmTask implementation */
+void alarm_task(void *pvParameters) {
+    alarm_init();
+    
+    for (;;) {
+        AlarmState state = alarm_get_state();
+        if (state == AlarmState::HIGH_TEMPERATURE || state == AlarmState::LOW_TEMPERATURE) {
+            gpio_set_level(GPIO_NUM_13, 1);
+            vTaskDelay(pdMS_TO_TICKS(200));
+            gpio_set_level(GPIO_NUM_13, 0);
+            vTaskDelay(pdMS_TO_TICKS(200));
+        } else {
+            gpio_set_level(GPIO_NUM_13, 0);
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
     }
 }
 
@@ -110,4 +133,5 @@ extern "C" void app_main() {
     xTaskCreate(display_task, "DisplayTask", 4096, NULL, 1, NULL);
     xTaskCreate(sensor_task, "SensorTask", 4096, NULL, 2, NULL);
     xTaskCreate(input_task, "InputTask", 2048, NULL, 3, NULL);
+    xTaskCreate(alarm_task, "AlarmTask", 2048, NULL, 4, NULL);
 }
