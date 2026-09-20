@@ -21,6 +21,7 @@ enum class DisplayMode {
 };
 
 extern DisplayMode currentDisplayMode;
+extern bool currentMotion;
 
 /* queue for broadcasting sensor data to other tasks */
 extern QueueHandle_t sensorQueue;
