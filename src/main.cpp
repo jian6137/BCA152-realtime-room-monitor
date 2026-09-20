@@ -42,6 +42,11 @@ void sensor_task(void *pvParameters) {
             data.lightLevel = ldr_read_percentage();
             data.motionDetected = currentMotion;
             
+            xSemaphoreTake(serialMutex, portMAX_DELAY);
+            printf("Temp: %.2fC | Hum: %.2f%% | Light: %d%% | Motion: %s\n", 
+                   data.temperature, data.humidity, data.lightLevel, data.motionDetected ? "YES" : "NO");
+            xSemaphoreGive(serialMutex);
+            
             // Evaluate alarm conditions only if active
             AlarmState newState = evaluateTemperature(data.temperature);
             alarm_set_state(newState);
