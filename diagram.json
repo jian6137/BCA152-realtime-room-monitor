@@ -18,19 +18,27 @@
       "left": -283.9,
       "rotate": 90,
       "attrs": {}
-    }
+    },
+    { "type": "wokwi-ssd1306", "id": "oled1", "top": -166.1, "left": 40.3, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
     [ "dht1:VCC", "esp:3V3", "red", [ "v28.8", "h-28.8", "v57.6" ] ],
     [ "dht1:GND", "esp:GND", "black", [] ],
-    [ "dht1:SDA", "esp:4", "green", [ "v38.4", "h-47.9", "v163.2" ] ],
+    [ "dht1:SDA", "esp:4", "green", [ "v38.4", "h-47.9", "v268.8", "h278.4", "v-105.6" ] ],
     [ "dht1:GND", "esp:GND.2", "black", [ "v38.4", "h192", "v48" ] ],
     [ "ldr1:VCC", "esp:3V3", "red", [ "v48", "h187.01" ] ],
     [ "ldr1:GND", "esp:GND", "black", [] ],
     [ "ldr1:AO", "esp:34", "yellow", [ "h-28.1", "v86.4" ] ],
-    [ "ldr1:GND", "esp:GND.2", "black", [ "v19.2", "h134.8", "v-19.2", "h182.4", "v48" ] ]
+    [ "ldr1:GND", "esp:GND.2", "black", [ "v19.2", "h134.8", "v-19.2", "h182.4", "v48" ] ],
+    [ "oled1:VCC", "esp:3V3", "red", [ "v-20", "h80" ] ],
+    [ "oled1:SCL", "esp:22", "blue", [ "v-30", "h100" ] ],
+    [ "oled1:SDA", "esp:21", "green", [ "v-40", "h120" ] ],
+    [ "oled1:GND", "esp:GND.2", "black", [ "v-37.9", "h67.4", "v220.8" ] ],
+    [ "oled1:VIN", "esp:3V3", "red", [ "v-38.4", "h-105", "v220.8" ] ],
+    [ "esp:21", "oled1:DATA", "green", [ "h120.04", "v-278.4", "h-144" ] ],
+    [ "oled1:CLK", "esp:22", "green", [ "v-57.6", "h144.6", "v259.2" ] ]
   ],
   "dependencies": {}
 }

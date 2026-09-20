@@ -13,6 +13,7 @@
 
 #include "sensors.h"
 #include "frtos_objects.h"
+#include "display.h"
 
 /* SensorTask implementation */
 void sensor_task(void *pvParameters) {
@@ -32,14 +33,31 @@ void sensor_task(void *pvParameters) {
         data.lightLevel = ldr_read_percentage();
         data.motionDetected = false; // dummy & temp data for now until PIR reading is implemented
         
-        // send data to queue, do not block if full
         xQueueSend(sensorQueue, &data, 0);
         
-        // diagnostic print (to be removed later if OLED is implemented, but only for testing)
-        printf("Sent to Queue -> Temp: %.2f C, Hum: %.2f %%, Light: %d %%\n", 
-               data.temperature, data.humidity, data.lightLevel);
-        
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    }
+}
+
+/* DisplayTask implementation */
+void display_task(void *pvParameters) {
+    display_init();
+    
+    // show my custom bootscreen for 3 seconds
+
+    // NOTE: The purpose of this is TO MAKE SURE THAT THE WHOLE SYSTEM IS STABILIZED BEFORE DOING ANYTHING
+    // This includes electrical voltages in the MCU.
+    // This is just how I IMPLEMENT MY PROJECTS that uses an OPERATING SYSTEM
+    display_update(NULL, "BOOT");
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    
+    SensorData data;
+    const char* currentMenu = "TEMPERATURE";
+    
+    for (;;) {
+        if (xQueueReceive(sensorQueue, &data, portMAX_DELAY) == pdPASS) {
+            display_update(&data, currentMenu);
+        }
     }
 }
 
@@ -47,9 +65,8 @@ extern "C" void app_main() {
     printf("BCA152 FreeRTOS Multisensor\n");
     printf("System starting...\n");
 
-    // initialize FreeRTOS objects
     rtos_objects_init();
 
-    // create SensorTask (Priority 2 as per lab manual suggested priorities)
-    xTaskCreate(sensor_task, "SensorTask", 2048, NULL, 2, NULL);
+    xTaskCreate(display_task, "DisplayTask", 4096, NULL, 1, NULL);
+    xTaskCreate(sensor_task, "SensorTask", 4096, NULL, 2, NULL);
 }
