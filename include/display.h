@@ -6,8 +6,10 @@
 /* initialize I2C and OLED display */
 void display_init();
 
-/* update the display based on current menu and sensor data */
+/* Clear the OLED display */
+void display_clear();
+
+/* Update the OLED with sensor data and menu state */
 void display_update(const SensorData* data, const char* activeMenu);
 
 #endif // DISPLAY_H
-

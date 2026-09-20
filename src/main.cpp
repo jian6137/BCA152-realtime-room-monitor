@@ -18,6 +18,7 @@
 #include "input.h"
 #include "alarm.h"
 #include "motion.h"
+#include "system_state.h"
 #include "driver/gpio.h"
 
 /* SensorTask implementation */
@@ -28,19 +29,23 @@ void sensor_task(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(2000);
     
+    SensorData data = {0.0f, 0.0f, 0, false}; // Cache previous readings
+    
     for (;;) {
-        SensorData data = {0.0f, 0.0f, 0, false};
-        
-        if (!dht22_read(&data.temperature, &data.humidity)) {
-            printf("Failed to read DHT22\n");
+        if (get_system_state() == SystemState::ACTIVE) {
+            if (!dht22_read(&data.temperature, &data.humidity)) {
+                printf("Failed to read DHT22\n");
+            }
+            
+            data.lightLevel = ldr_read_percentage();
+            data.motionDetected = currentMotion;
+            
+            AlarmState newState = evaluateTemperature(data.temperature);
+            alarm_set_state(newState);
+        } else {
+            data.motionDetected = currentMotion;
+            alarm_set_state(AlarmState::NORMAL);
         }
-        
-        data.lightLevel = ldr_read_percentage();
-        data.motionDetected = currentMotion;
-        
-        // Evaluate alarm conditions
-        AlarmState newState = evaluateTemperature(data.temperature);
-        alarm_set_state(newState);
         
         xQueueSend(sensorQueue, &data, 0);
         
@@ -60,13 +65,26 @@ void motion_task(void *pvParameters) {
     }
 }
 
+/* StateTask implementation */
+void state_task(void *pvParameters) {
+    uint32_t lastMotionTicks = xTaskGetTickCount();
+    const uint32_t timeoutTicks = pdMS_TO_TICKS(15000); // 15 seconds inactivity
+    
+    for (;;) {
+        SystemState newState = evaluateSystemState(currentMotion, xTaskGetTickCount(), &lastMotionTicks, timeoutTicks);
+        set_system_state(newState);
+        
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
 /* AlarmTask implementation */
 void alarm_task(void *pvParameters) {
     alarm_init();
     
     for (;;) {
         AlarmState state = alarm_get_state();
-        if (state == AlarmState::HIGH_TEMPERATURE || state == AlarmState::LOW_TEMPERATURE) {
+        if (get_system_state() == SystemState::ACTIVE && (state == AlarmState::HIGH_TEMPERATURE || state == AlarmState::LOW_TEMPERATURE)) {
             gpio_set_level(GPIO_NUM_13, 1);
             vTaskDelay(pdMS_TO_TICKS(200));
             gpio_set_level(GPIO_NUM_13, 0);
@@ -88,16 +106,18 @@ void input_task(void *pvParameters) {
     int lastClk = gpio_get_level(GPIO_NUM_26);
     
     for (;;) {
-        int clk = gpio_get_level(GPIO_NUM_26);
-        if (clk != lastClk && clk == 1) { // rising edge
-            int dt = gpio_get_level(GPIO_NUM_27);
-            if (dt != clk) {
-                nextDisplayMode();
-            } else {
-                previousDisplayMode();
+        if (get_system_state() == SystemState::ACTIVE) {
+            int clk = gpio_get_level(GPIO_NUM_26);
+            if (clk != lastClk && clk == 1) { // rising edge
+                int dt = gpio_get_level(GPIO_NUM_27);
+                if (dt != clk) {
+                    nextDisplayMode();
+                } else {
+                    previousDisplayMode();
+                }
             }
+            lastClk = clk;
         }
-        lastClk = clk;
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
@@ -116,21 +136,32 @@ void display_task(void *pvParameters) {
     
     SensorData data = {0.0f, 0.0f, 0, false};
     DisplayMode lastMode = currentDisplayMode;
+    SystemState lastSystemState = SystemState::ACTIVE;
     bool needsUpdate = true;
     
     for (;;) {
-        // wait up to 50ms for new sensor data
+        SystemState currentState = get_system_state();
+        
         if (xQueueReceive(sensorQueue, &data, pdMS_TO_TICKS(50)) == pdPASS) {
             needsUpdate = true;
         }
         
-        // check if user turned the encoder
         if (lastMode != currentDisplayMode) {
             lastMode = currentDisplayMode;
             needsUpdate = true;
         }
+
+        // Controls the OLED Display Activity (ACTIVE / INACTIVE)
+        if (lastSystemState != currentState) {
+            lastSystemState = currentState;
+            if (currentState == SystemState::INACTIVE) {
+                display_clear();
+            } else {
+                needsUpdate = true;
+            }
+        }
         
-        if (needsUpdate) {
+        if (needsUpdate && currentState == SystemState::ACTIVE) {
             display_update(&data, get_display_mode_str(currentDisplayMode));
             needsUpdate = false;
         }
@@ -148,4 +179,5 @@ extern "C" void app_main() {
     xTaskCreate(alarm_task, "AlarmTask", 2048, NULL, 2, NULL);
     xTaskCreate(input_task, "InputTask", 2048, NULL, 3, NULL);
     xTaskCreate(motion_task, "MotionTask", 2048, NULL, 3, NULL);
+    xTaskCreate(state_task, "StateTask", 2048, NULL, 4, NULL);
 }

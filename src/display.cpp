@@ -154,6 +154,11 @@ static void draw_string_2x(int x, int y, const char* str, bool color) {
     }
 }
 
+void display_clear() {
+    memset(display_buffer, 0, sizeof(display_buffer));
+    oled_send_buffer();
+}
+
 void display_update(const SensorData* data, const char* activeMenu) {
     memset(display_buffer, 0, sizeof(display_buffer));
     
