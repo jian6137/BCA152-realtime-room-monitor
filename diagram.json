@@ -8,15 +8,17 @@
       "id": "esp",
       "top": 0,
       "left": 0,
-      "attrs": {
-        "env": "platformio"
-      }
-    }
+      "attrs": { "env": "platformio" }
+    },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -172.5, "left": -111, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
-    [ "esp:RX", "$serialMonitor:TX", "", [] ]
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "dht1:VCC", "esp:3V3", "red", [ "v28.8", "h-28.8", "v57.6" ] ],
+    [ "dht1:GND", "esp:GND", "black", [] ],
+    [ "dht1:SDA", "esp:4", "green", [ "v38.4", "h-47.9", "v163.2" ] ],
+    [ "dht1:GND", "esp:GND.2", "black", [ "v38.4", "h192", "v48" ] ]
   ],
   "dependencies": {}
 }
-

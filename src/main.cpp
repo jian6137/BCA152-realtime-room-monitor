@@ -11,21 +11,27 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-/* Task A implementation */
-void task_a(void *pvParameters) {
-    for (;;) {
-        printf("Task A running\n");
-        // block for 1000 ms
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
+#include "sensors.h"
 
-/* Task B implementation */
-void task_b(void *pvParameters) {
+/* SensorTask implementation */
+void sensor_task(void *pvParameters) {
+    dht22_init(GPIO_NUM_4);
+    
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xFrequency = pdMS_TO_TICKS(2000);
+    
     for (;;) {
-        printf("Task B running\n");
-        // block for 1500 ms
-        vTaskDelay(pdMS_TO_TICKS(1500));
+        float temperature = 0.0f;
+        float humidity = 0.0f;
+        
+        if (dht22_read(&temperature, &humidity)) {
+            printf("Temperature: %.2f C\n", temperature);
+            printf("Humidity: %.2f %%\n", humidity);
+        } else {
+            printf("Failed to read DHT22\n");
+        }
+        
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
 
@@ -33,9 +39,6 @@ extern "C" void app_main() {
     printf("BCA152 FreeRTOS Multisensor\n");
     printf("System starting...\n");
 
-    // create Task A
-    xTaskCreate(task_a, "TaskA", 2048, NULL, 1, NULL);
-
-    // create Task B
-    xTaskCreate(task_b, "TaskB", 2048, NULL, 1, NULL);
+    // create SensorTask (Priority 2 as per the lab manual suggested priorities to use)
+    xTaskCreate(sensor_task, "SensorTask", 2048, NULL, 2, NULL);
 }
