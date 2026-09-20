@@ -34,7 +34,9 @@ void sensor_task(void *pvParameters) {
     for (;;) {
         if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
             if (!dht22_read(&data.temperature, &data.humidity)) {
+                xSemaphoreTake(serialMutex, portMAX_DELAY);
                 printf("Failed to read DHT22\n");
+                xSemaphoreGive(serialMutex);
             }
             
             data.lightLevel = ldr_read_percentage();
@@ -207,10 +209,12 @@ void display_task(void *pvParameters) {
 }
 
 extern "C" void app_main() {
+    rtos_objects_init();
+
+    xSemaphoreTake(serialMutex, portMAX_DELAY);
     printf("BCA152 FreeRTOS Multisensor\n");
     printf("System starting...\n");
-
-    rtos_objects_init();
+    xSemaphoreGive(serialMutex);
 
     xTaskCreate(display_task, "DisplayTask", 4096, NULL, 1, NULL);
     xTaskCreate(sensor_task, "SensorTask", 4096, NULL, 2, NULL);

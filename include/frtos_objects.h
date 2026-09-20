@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
+#include "freertos/semphr.h"
 
 /* structure to hold all sensor readings */
 struct SensorData {
@@ -26,6 +27,9 @@ extern bool currentMotion;
 
 /* queue for broadcasting sensor data to other tasks */
 extern QueueHandle_t sensorQueue;
+
+/* mutex to protect serial output */
+extern SemaphoreHandle_t serialMutex;
 
 /* event group for signaling system states */
 extern EventGroupHandle_t systemEventGroup;
