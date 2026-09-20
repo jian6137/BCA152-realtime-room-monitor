@@ -3,6 +3,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/event_groups.h"
 
 /* structure to hold all sensor readings */
 struct SensorData {
@@ -26,8 +27,13 @@ extern bool currentMotion;
 /* queue for broadcasting sensor data to other tasks */
 extern QueueHandle_t sensorQueue;
 
+/* event group for signaling system states */
+extern EventGroupHandle_t systemEventGroup;
+#define EVENT_ACTIVE BIT0
+#define EVENT_MOTION BIT1
+#define EVENT_ALARM  BIT2
+
 /* initialize all FreeRTOS objects */
 void rtos_objects_init();
 
 #endif // RTOS_OBJECTS_H
-

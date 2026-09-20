@@ -32,7 +32,7 @@ void sensor_task(void *pvParameters) {
     SensorData data = {0.0f, 0.0f, 0, false}; // Cache previous readings
     
     for (;;) {
-        if (get_system_state() == SystemState::ACTIVE) {
+        if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
             if (!dht22_read(&data.temperature, &data.humidity)) {
                 printf("Failed to read DHT22\n");
             }
@@ -40,11 +40,19 @@ void sensor_task(void *pvParameters) {
             data.lightLevel = ldr_read_percentage();
             data.motionDetected = currentMotion;
             
+            // Evaluate alarm conditions only if active
             AlarmState newState = evaluateTemperature(data.temperature);
             alarm_set_state(newState);
+            
+            if (newState == AlarmState::HIGH_TEMPERATURE || newState == AlarmState::LOW_TEMPERATURE) {
+                xEventGroupSetBits(systemEventGroup, EVENT_ALARM);
+            } else {
+                xEventGroupClearBits(systemEventGroup, EVENT_ALARM);
+            }
         } else {
             data.motionDetected = currentMotion;
             alarm_set_state(AlarmState::NORMAL);
+            xEventGroupClearBits(systemEventGroup, EVENT_ALARM);
         }
         
         xQueueSend(sensorQueue, &data, 0);
@@ -59,6 +67,11 @@ void motion_task(void *pvParameters) {
     
     for (;;) {
         currentMotion = motion_detect();
+        if (currentMotion) {
+            xEventGroupSetBits(systemEventGroup, EVENT_MOTION);
+        } else {
+            xEventGroupClearBits(systemEventGroup, EVENT_MOTION);
+        }
         
         // Poll at 10Hz or 10 cycles per second
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -71,10 +84,28 @@ void state_task(void *pvParameters) {
     const uint32_t timeoutTicks = pdMS_TO_TICKS(15000); // 15 seconds inactivity
     
     for (;;) {
-        SystemState newState = evaluateSystemState(currentMotion, xTaskGetTickCount(), &lastMotionTicks, timeoutTicks);
+        EventBits_t bits = xEventGroupWaitBits(
+            systemEventGroup, 
+            EVENT_MOTION, 
+            pdFALSE, // Do not auto-clear
+            pdFALSE, 
+            timeoutTicks
+        );
+        
+        bool motionNow = (bits & EVENT_MOTION) != 0;
+        
+        SystemState newState = evaluateSystemState(motionNow, xTaskGetTickCount(), &lastMotionTicks, timeoutTicks);
         set_system_state(newState);
         
-        vTaskDelay(pdMS_TO_TICKS(100));
+        if (newState == SystemState::ACTIVE) {
+            xEventGroupSetBits(systemEventGroup, EVENT_ACTIVE);
+        } else {
+            xEventGroupClearBits(systemEventGroup, EVENT_ACTIVE);
+        }
+        
+        if (motionNow) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
     }
 }
 
@@ -83,15 +114,19 @@ void alarm_task(void *pvParameters) {
     alarm_init();
     
     for (;;) {
-        AlarmState state = alarm_get_state();
-        if (get_system_state() == SystemState::ACTIVE && (state == AlarmState::HIGH_TEMPERATURE || state == AlarmState::LOW_TEMPERATURE)) {
+        xEventGroupWaitBits(
+            systemEventGroup, 
+            EVENT_ALARM | EVENT_ACTIVE, 
+            pdFALSE, 
+            pdTRUE, // Wait for ALL bits
+            portMAX_DELAY
+        );
+        
+        if ((xEventGroupGetBits(systemEventGroup) & (EVENT_ALARM | EVENT_ACTIVE)) == (EVENT_ALARM | EVENT_ACTIVE)) {
             gpio_set_level(GPIO_NUM_13, 1);
             vTaskDelay(pdMS_TO_TICKS(200));
             gpio_set_level(GPIO_NUM_13, 0);
             vTaskDelay(pdMS_TO_TICKS(200));
-        } else {
-            gpio_set_level(GPIO_NUM_13, 0);
-            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
@@ -106,7 +141,7 @@ void input_task(void *pvParameters) {
     int lastClk = gpio_get_level(GPIO_NUM_26);
     
     for (;;) {
-        if (get_system_state() == SystemState::ACTIVE) {
+        if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
             int clk = gpio_get_level(GPIO_NUM_26);
             if (clk != lastClk && clk == 1) { // rising edge
                 int dt = gpio_get_level(GPIO_NUM_27);
@@ -118,6 +153,7 @@ void input_task(void *pvParameters) {
             }
             lastClk = clk;
         }
+        
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
@@ -140,7 +176,9 @@ void display_task(void *pvParameters) {
     bool needsUpdate = true;
     
     for (;;) {
-        SystemState currentState = get_system_state();
+        // Determine logical state from event group
+        bool isActive = (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) != 0;
+        SystemState currentState = isActive ? SystemState::ACTIVE : SystemState::INACTIVE;
         
         if (xQueueReceive(sensorQueue, &data, pdMS_TO_TICKS(50)) == pdPASS) {
             needsUpdate = true;
