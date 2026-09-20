@@ -3,6 +3,7 @@
 #include "freertos/task.h"
 #include "esp_timer.h"
 #include "rom/ets_sys.h"
+#include "esp_adc/adc_oneshot.h"
 
 static gpio_num_t dht_pin;
 
@@ -77,5 +78,32 @@ bool dht22_read(float *temperature, float *humidity) {
     }
 
     return true;
+}
+
+static adc_oneshot_unit_handle_t adc1_handle;
+
+void ldr_init() {
+    adc_oneshot_unit_init_cfg_t init_config = {};
+    init_config.unit_id = ADC_UNIT_1;
+    adc_oneshot_new_unit(&init_config, &adc1_handle);
+
+    adc_oneshot_chan_cfg_t config = {};
+    config.bitwidth = ADC_BITWIDTH_DEFAULT;
+    config.atten = ADC_ATTEN_DB_12;
+    adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_6, &config);
+}
+
+int ldr_read_percentage() {
+    int raw = 0;
+    adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &raw);
+    
+    // convert 12 bit raw value (0-4095) to an inverted percentage (0 to 100)
+    // Wokwi LDR outputs high voltage for darkness, low voltage for light
+    int percentage = 100 - ((raw * 100) / 4095);
+    
+    if (percentage > 100) percentage = 100;
+    if (percentage < 0) percentage = 0;
+    
+    return percentage;
 }
 

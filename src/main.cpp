@@ -16,6 +16,7 @@
 /* SensorTask implementation */
 void sensor_task(void *pvParameters) {
     dht22_init(GPIO_NUM_4);
+    ldr_init();
     
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(2000);
@@ -30,6 +31,9 @@ void sensor_task(void *pvParameters) {
         } else {
             printf("Failed to read DHT22\n");
         }
+        
+        int lightLevel = ldr_read_percentage();
+        printf("Ambient Light: %d %%\n", lightLevel);
         
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
