@@ -213,7 +213,8 @@ void display_task(void *pvParameters) {
     }
 }
 
-extern "C" void app_main() {
+#ifndef PIO_UNIT_TESTING
+extern "C" void __attribute__((weak)) app_main() {
     rtos_objects_init();
 
     xSemaphoreTake(serialMutex, portMAX_DELAY);
@@ -228,3 +229,4 @@ extern "C" void app_main() {
     xTaskCreate(motion_task, "MotionTask", 2048, NULL, 3, NULL);
     xTaskCreate(state_task, "StateTask", 2048, NULL, 4, NULL);
 }
+#endif
