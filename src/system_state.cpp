@@ -2,10 +2,6 @@
 
 static SystemState currentState = SystemState::ACTIVE;
 
-SystemState get_system_state() {
-    return currentState;
-}
-
 void set_system_state(SystemState state) {
     currentState = state;
 }

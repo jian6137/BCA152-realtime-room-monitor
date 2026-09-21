@@ -14,10 +14,6 @@ void alarm_set_state(AlarmState state) {
     currentAlarmState = state;
 }
 
-AlarmState alarm_get_state() {
-    return currentAlarmState;
-}
-
 AlarmState evaluateTemperature(float temperature) {
     if (temperature < 18.0f) {
         return AlarmState::LOW_TEMPERATURE;

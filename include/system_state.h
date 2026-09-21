@@ -8,9 +8,6 @@ enum class SystemState {
     INACTIVE
 };
 
-/* Get current system state */
-SystemState get_system_state();
-
 /* Set current system state */
 void set_system_state(SystemState state);
 
