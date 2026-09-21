@@ -1,5 +1,12 @@
 #include <unity.h>
 #include "alarm.h"
+#include "frtos_objects.h"
+
+DisplayMode currentDisplayMode = DisplayMode::TEMPERATURE;
+bool currentMotion = false;
+QueueHandle_t sensorQueue = nullptr;
+EventGroupHandle_t systemEventGroup = nullptr;
+SemaphoreHandle_t serialMutex = nullptr;
 
 void setUp(void) {
     // set up here
