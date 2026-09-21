@@ -1,8 +1,6 @@
 #ifndef ALARM_H
 #define ALARM_H
 
-#include "frtos_objects.h"
-
 enum class AlarmState {
     NORMAL,
     LOW_TEMPERATURE,
