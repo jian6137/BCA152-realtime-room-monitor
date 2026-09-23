@@ -139,29 +139,51 @@ void alarm_task(void *pvParameters) {
 }
 
 /* InputTask implementation */
+static TaskHandle_t inputTaskHandle = NULL;
+
+static void IRAM_ATTR encoder_isr_handler(void* arg) {
+    uint32_t dt = gpio_get_level(GPIO_NUM_27);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xTaskNotifyFromISR(inputTaskHandle, dt, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+    if (xHigherPriorityTaskWoken) {
+        portYIELD_FROM_ISR();
+    }
+}
+
 void input_task(void *pvParameters) {
-    gpio_set_direction(GPIO_NUM_26, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(GPIO_NUM_26, GPIO_PULLUP_ONLY);
+    inputTaskHandle = xTaskGetCurrentTaskHandle();
+    
     gpio_set_direction(GPIO_NUM_27, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIO_NUM_27, GPIO_PULLUP_ONLY);
     
-    int lastClk = gpio_get_level(GPIO_NUM_26);
+    gpio_config_t io_conf = {};
+    io_conf.intr_type = GPIO_INTR_NEGEDGE;
+    io_conf.pin_bit_mask = (1ULL << GPIO_NUM_26);
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_conf);
+    
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(GPIO_NUM_26, encoder_isr_handler, NULL);
+    
+    uint32_t dt_val = 0;
+    uint32_t lastClickTime = 0;
     
     for (;;) {
-        if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
-            int clk = gpio_get_level(GPIO_NUM_26);
-            if (clk != lastClk && clk == 1) { // rising edge
-                int dt = gpio_get_level(GPIO_NUM_27);
-                if (dt != clk) {
-                    nextDisplayMode();
-                } else {
-                    previousDisplayMode();
+        if (xTaskNotifyWait(0, 0xFFFFFFFF, &dt_val, portMAX_DELAY) == pdTRUE) {
+            uint32_t currentTime = xTaskGetTickCount(); 
+            
+            if ((currentTime - lastClickTime) > pdMS_TO_TICKS(50)) {
+                if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
+                    if (dt_val == 1) { 
+                        nextDisplayMode(); // Clockwise
+                    } else {         
+                        previousDisplayMode(); // Counter-Clockwise
+                    }
                 }
+                lastClickTime = currentTime;
             }
-            lastClk = clk;
         }
-        
-        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
