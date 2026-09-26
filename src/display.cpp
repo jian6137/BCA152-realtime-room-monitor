@@ -48,6 +48,7 @@ static void oled_send_cmd(uint8_t cmd) {
 }
 
 static void oled_send_buffer() {
+    #pragma unroll
     for (uint8_t i = 0; i < OLED_PAGES; i++) {
         oled_send_cmd(0xB0 + i); // page
         oled_send_cmd(0x00); // lower column
@@ -104,8 +105,10 @@ static void draw_pixel(int x, int y, bool color) {
 }
 
 static void fill_rect(int x, int y, int w, int h, bool color) {
+    #pragma unroll
     for (int i = 0; i < w; i++) {
-        for (int j = 0; j < h; j++) {
+        #pragma unroll
+    for (int j = 0; j < h; j++) {
             draw_pixel(x + i, y + j, color);
         }
     }
@@ -113,9 +116,11 @@ static void fill_rect(int x, int y, int w, int h, bool color) {
 
 static void draw_char(int x, int y, char c, bool color, bool bg_color) {
     if (c < 32 || c > 127) c = 32;
+    #pragma unroll
     for (int i = 0; i < 5; i++) {
         uint8_t col = font5x7[c - 32][i];
-        for (int j = 0; j < 7; j++) {
+        #pragma unroll
+    for (int j = 0; j < 7; j++) {
             if (col & (1 << j)) {
                 draw_pixel(x + i, y + j, color);
             } else {
@@ -134,9 +139,11 @@ static void draw_string(int x, int y, const char* str, bool color, bool bg_color
 
 static void draw_char_2x(int x, int y, char c, bool color) {
     if (c < 32 || c > 127) c = 32;
+    #pragma unroll
     for (int i = 0; i < 5; i++) {
         uint8_t col = font5x7[c - 32][i];
-        for (int j = 0; j < 7; j++) {
+        #pragma unroll
+    for (int j = 0; j < 7; j++) {
             if (col & (1 << j)) {
                 draw_pixel(x + i*2, y + j*2, color);
                 draw_pixel(x + i*2 + 1, y + j*2, color);
@@ -169,16 +176,16 @@ void display_update(const SensorData* data, const char* activeMenu) {
     // draw & render the sensor value
     char buf[32];
     if (strcmp(activeMenu, "TEMPERATURE") == 0) {
-        snprintf(buf, sizeof(buf), "%.1f C", data->temperature);
+        (void)snprintf(buf, sizeof(buf), "%.1f C", data->temperature);
         draw_string_2x(10, 32, buf, true);
     } else if (strcmp(activeMenu, "HUMIDITY") == 0) {
-        snprintf(buf, sizeof(buf), "%.1f %%", data->humidity);
+        (void)snprintf(buf, sizeof(buf), "%.1f %%", data->humidity);
         draw_string_2x(10, 32, buf, true);
     } else if (strcmp(activeMenu, "LIGHT") == 0) {
-        snprintf(buf, sizeof(buf), "%d %%", data->lightLevel);
+        (void)snprintf(buf, sizeof(buf), "%d %%", data->lightLevel);
         draw_string_2x(10, 32, buf, true);
     } else if (strcmp(activeMenu, "MOTION") == 0) {
-        snprintf(buf, sizeof(buf), "%s", data->motionDetected ? "DETECTED" : "NONE");
+        (void)snprintf(buf, sizeof(buf), "%s", data->motionDetected ? "DETECTED" : "NONE");
         draw_string_2x(10, 32, buf, true);
     } else {
         // default boot screen

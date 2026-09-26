@@ -45,6 +45,7 @@ bool dht22_read(float *temperature, float *humidity) {
     if (wait_for_state(0, 80) == -1) { taskEXIT_CRITICAL(&mux); return false; }
 
     // read 40 bits
+    #pragma unroll
     for (int i = 0; i < 40; i++) {
         if (wait_for_state(1, 80) == -1) { taskEXIT_CRITICAL(&mux); return false; }
         int dur = wait_for_state(0, 80);
@@ -69,12 +70,12 @@ bool dht22_read(float *temperature, float *humidity) {
     uint16_t raw_hum = (data[0] << 8) | data[1];
     uint16_t raw_temp = (data[2] << 8) | data[3];
 
-    *humidity = raw_hum * 0.1f;
+    *humidity = static_cast<float>(raw_hum) * 0.1f;
     
     if (raw_temp & 0x8000) {
-        *temperature = -(raw_temp & 0x7FFF) * 0.1f;
+        *temperature = static_cast<float>(raw_temp & 0x7FFF) * -0.1f;
     } else {
-        *temperature = raw_temp * 0.1f;
+        *temperature = static_cast<float>(raw_temp) * 0.1f;
     }
 
     return true;

@@ -31,6 +31,7 @@ void sensor_task(void *pvParameters) {
     
     SensorData data = {0.0f, 0.0f, 0, false}; // Cache previous readings
     
+    #pragma unroll
     for (;;) {
         if (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) {
             if (!dht22_read(&data.temperature, &data.humidity)) {
@@ -51,7 +52,8 @@ void sensor_task(void *pvParameters) {
             AlarmState newState = evaluateTemperature(data.temperature);
             alarm_set_state(newState);
             
-            if (newState == AlarmState::HIGH_TEMPERATURE || newState == AlarmState::LOW_TEMPERATURE) {
+            bool alarmActive = (newState == AlarmState::HIGH_TEMPERATURE || newState == AlarmState::LOW_TEMPERATURE);
+            if (alarmActive) {
                 xEventGroupSetBits(systemEventGroup, EVENT_ALARM);
             } else {
                 xEventGroupClearBits(systemEventGroup, EVENT_ALARM);
@@ -72,9 +74,11 @@ void sensor_task(void *pvParameters) {
 void motion_task(void *pvParameters) {
     motion_init();
     
+    #pragma unroll
     for (;;) {
         currentMotion = motion_detect();
-        if (currentMotion) {
+        bool hasMotion = currentMotion;
+        if (hasMotion) {
             xEventGroupSetBits(systemEventGroup, EVENT_MOTION);
         } else {
             xEventGroupClearBits(systemEventGroup, EVENT_MOTION);
@@ -90,6 +94,7 @@ void state_task(void *pvParameters) {
     uint32_t lastMotionTicks = xTaskGetTickCount();
     const uint32_t timeoutTicks = pdMS_TO_TICKS(15000); // 15 seconds inactivity
     
+    #pragma unroll
     for (;;) {
         EventBits_t bits = xEventGroupWaitBits(
             systemEventGroup, 
@@ -104,7 +109,8 @@ void state_task(void *pvParameters) {
         SystemState newState = evaluateSystemState(motionNow, xTaskGetTickCount(), &lastMotionTicks, timeoutTicks);
         set_system_state(newState);
         
-        if (newState == SystemState::ACTIVE) {
+        bool systemActive = (newState == SystemState::ACTIVE);
+        if (systemActive) {
             xEventGroupSetBits(systemEventGroup, EVENT_ACTIVE);
         } else {
             xEventGroupClearBits(systemEventGroup, EVENT_ACTIVE);
@@ -120,6 +126,7 @@ void state_task(void *pvParameters) {
 void alarm_task(void *pvParameters) {
     alarm_init();
     
+    #pragma unroll
     for (;;) {
         xEventGroupWaitBits(
             systemEventGroup, 
@@ -169,6 +176,7 @@ void input_task(void *pvParameters) {
     uint32_t dt_val = 0;
     uint32_t lastClickTime = 0;
     
+    #pragma unroll
     for (;;) {
         if (xTaskNotifyWait(0, 0xFFFFFFFF, &dt_val, portMAX_DELAY) == pdTRUE) {
             uint32_t currentTime = xTaskGetTickCount(); 
@@ -204,6 +212,7 @@ void display_task(void *pvParameters) {
     SystemState lastSystemState = SystemState::ACTIVE;
     bool needsUpdate = true;
     
+    #pragma unroll
     for (;;) {
         // Determine logical state from event group
         bool isActive = (xEventGroupGetBits(systemEventGroup) & EVENT_ACTIVE) != 0;
